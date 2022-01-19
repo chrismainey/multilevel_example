@@ -15,11 +15,11 @@ This is a surface-level overview of fitting random-intercept models in R and Pyt
 
 For prediction, I will demonstrate two methods for a random-intercept:
 
-* __"Conditional"__ - 'conditioned' on the random-effect i.e. using the random effect.  This gives 'cluster-specific' predictions and in SHMI this would be trust-specific predictions.  You can't use these for a funnel plot, as there is no residual variation and all points line up at 1 on the y-axis (you are summing residual variance in the same clusters you are calcualting it at).
+* __"Conditional"__ - 'conditioned' on the random-effect i.e. using the random effect.  This gives 'cluster-specific' predictions and in SHMI this would be trust-specific predictions.  You can't use these for a funnel plot, as there is no residual variation and all points line up at 1 on the y-axis (you are summing residual variance in the same clusters you are calculating it at).
 
-* __"Marginal"__ - using the global average prediciton i.e. without the random effect.  This gives a global prediction and in SHMI this would be prediction at the national average risk for a patietn with a set of predictors (not trust-specific).  You can use these for a funnel plot, you've just got a better case mix model.
+* __"Marginal"__ - using the global average prediction i.e. without the random effect.  This gives a global prediction and in SHMI this would be prediction at the national average risk for a patient with a set of predictors (not trust-specific).  You can use these for a funnel plot, you've just got a better case mix model.
 
-Although I advocate the marginal prediction, another approach entirely would be to estimate the random-intercept (how much the trust differs from national average), bootstrap a confidence interval and present as a catepillar plot.  That's another argument though
+Although I advocate the marginal prediction, another approach entirely would be to estimate the random-intercept (how much the trust differs from national average), bootstrap a confidence interval and present as a caterpillar plot.  That's another argument though
 
 
 ## Data
@@ -31,6 +31,7 @@ library(COUNT)
 library(lme4)
 library(ModelMetrics)
 library(ggplot2)
+library(FunnelPlotR)
 
 data("medpar")
 ```
@@ -87,3 +88,38 @@ ggplot(medpar, aes(y=cond_preds, x=marg_preds, col = as.factor(died)))+
 ```
 
 ### SHMI equivalent
+
+The equivalent conditional and marginal SMRs would be:
+
+```{r rsmr}
+library(dplyr)
+
+SMR_set <-
+  medpar %>% 
+  group_by(provnum) %>% 
+  summarise(num = sum(died),
+            conditional = sum(cond_preds),
+            marginal = sum(marg_preds),
+            SMR_conditional = sum(died) / sum(cond_preds),
+            SMR_marginal = sum(died) / sum(marg_preds)
+          )
+
+```
+
+### Now Funnel Plot output
+
+#### Conditional
+```{r rfunnelcond}
+fp1 <- funnel_plot(SMR_set$num, SMR_set$conditional, SMR_set$provnum,limit = 95, draw_adjusted = TRUE)
+
+plot(fp1)
+phi(fp1)
+```
+
+#### Marginal
+````{r funnelplotmarg}
+fp2 <- funnel_plot(SMR_set$num, SMR_set$marginal, SMR_set$provnum,limit = 95, draw_adjusted = TRUE)
+
+plot(fp2)
+phi(fp2)
+```
