@@ -1,0 +1,89 @@
+---
+title: "Random Intercept models"
+author: "Chris Mainey"
+date: "19/01/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This is a surface-level overview of fitting random-intercept models in R and Python and trying to use them for the prediction task described in our chate on 19/01/2022.  Hopefully it's a useful starter!
+
+For prediction, I will demonstrate two methods for a random-intercept:
+
+* __"Conditional"__ - 'conditioned' on the random-effect i.e. using the random effect.  This gives 'cluster-specific' predictions and in SHMI this would be trust-specific predictions.  You can't use these for a funnel plot, as there is no residual variation and all points line up at 1 on the y-axis (you are summing residual variance in the same clusters you are calcualting it at).
+
+* __"Marginal"__ - using the global average prediciton i.e. without the random effect.  This gives a global prediction and in SHMI this would be prediction at the national average risk for a patietn with a set of predictors (not trust-specific).  You can use these for a funnel plot, you've just got a better case mix model.
+
+Although I advocate the marginal prediction, another approach entirely would be to estimate the random-intercept (how much the trust differs from national average), bootstrap a confidence interval and present as a catepillar plot.  That's another argument though
+
+
+## Data
+
+I'm Hilbe's `COUNT` package and the `medpar` dataset which is a cut from 1991 Medicare files for the state of Arizona.
+
+```{r}
+library(COUNT)
+library(lme4)
+library(ModelMetrics)
+library(ggplot2)
+
+data("medpar")
+```
+
+## In R
+
+This is using the lme4 library which is a frequentist take on multi-level modelling, but it can generally be interprted in a Bayesian fashion as well, and many mixed-effects model packages are explicitly bayesian.
+
+### Single-level glm:
+```{r rglm}
+mod1 <- glm(died ~ age80 + los, data=medpar, family="binomial")
+
+summary(mod1)
+
+auc(mod1)
+```
+
+### Random-intercept:
+```{r rglmer}
+mod2 <- glmer(died ~ (1|provnum) + age80 + los, data=medpar, family="binomial")
+
+summary(mod2)
+
+auc(mod2)
+```
+
+Slightly lower AIC (and asymptotically a reduction of >=4 is a 95% sigficance, so it's slightly better bad model, slightly improved C-statistic (but it's on the training set).
+
+### Prediction
+Remeber we are predicting back on to the training set here, so it's better to describe them as 'fitted' I suppose, but it's still the predict function.
+
+```{r rpreds}
+# Conditional (cluster-sepcific)  -  the default
+medpar$cond_preds <- predict(mod2, newdata= medpar, type="response")
+
+# Marginal 
+medpar$marg_preds <- predict(mod2, newdata= medpar, type="response", re.form = ~0)
+```
+
+```{r rpredsout}
+head(medpar[c("cond_preds", "marg_preds")])
+```
+```{r}
+ggplot(medpar, aes(y=cond_preds, x=marg_preds, col = as.factor(died)))+
+  geom_point()+
+  geom_abline(intercept=0, slope=1, col="blue")+
+  scale_color_brewer("Died",palette = "Set2")+
+  labs(title = "Conditional vs Marginal predictions example in R",
+       subtitle = "Blue line: x=y",
+       x = "Marginal Prediction (no random-intercept)",
+       y = "Conditional Prediciton (with random-intercept)")+
+  theme_minimal()+
+  theme(legend.position = "bottom")
+```
+
+### SHMI equivalent
