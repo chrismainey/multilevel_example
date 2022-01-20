@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-This is a surface-level overview of fitting random-intercept models in R and Python and trying to use them for the prediction task described in our chate on 19/01/2022.  Hopefully it's a useful starter!
+This is a surface-level overview of fitting random-intercept models in R and Python and trying to use them for the prediction task described in our chat on 19/01/2022.  Hopefully it's a useful starter!
 
 For prediction, I will demonstrate two methods for a random-intercept:
 
@@ -38,11 +38,11 @@ data("medpar")
 
 ## In R
 
-This is using the lme4 library which is a frequentist take on multi-level modelling, but it can generally be interprted in a Bayesian fashion as well, and many mixed-effects model packages are explicitly bayesian.
+This is using the lme4 library which is a frequentest take on multi-level modelling, but it can generally be interpreted in a Bayesian fashion as well, and many mixed-effects model packages are explicitly Bayesian.
 
 ### Single-level glm:
 ```{r rglm}
-mod1 <- glm(died ~ age80 + los, data=medpar, family="binomial")
+mod1 <- glm(died ~ age80 + los + factor(type), data=medpar, family="binomial")
 
 summary(mod1)
 
@@ -51,20 +51,20 @@ auc(mod1)
 
 ### Random-intercept:
 ```{r rglmer}
-mod2 <- glmer(died ~ (1|provnum) + age80 + los, data=medpar, family="binomial")
+mod2 <- glmer(died ~ (1|provnum) + age80 + los + factor(type), data=medpar, family="binomial")
 
 summary(mod2)
 
 auc(mod2)
 ```
 
-Slightly lower AIC (and asymptotically a reduction of >=4 is a 95% sigficance, so it's slightly better bad model, slightly improved C-statistic (but it's on the training set).
+Slightly lower AIC (and asymptotically a reduction of >=4 is a 95% significance, so it's slightly better bad model, slightly improved C-statistic (but it's on the training set).  C-statistics is still rubbish here though.
 
 ### Prediction
-Remeber we are predicting back on to the training set here, so it's better to describe them as 'fitted' I suppose, but it's still the predict function.
+Remember we are predicting back on to the training set here, so it's better to describe them as 'fitted' I suppose, but it's still the predict function.
 
 ```{r rpreds}
-# Conditional (cluster-sepcific)  -  the default
+# Conditional (cluster-specific)  -  the default
 medpar$cond_preds <- predict(mod2, newdata= medpar, type="response")
 
 # Marginal 
